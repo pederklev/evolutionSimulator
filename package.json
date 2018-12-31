@@ -20,5 +20,10 @@
   "bugs": {
     "url": "https://github.com/adityathebe/evolutionSimulator/issues"
   },
-  "homepage": "https://github.com/adityathebe/evolutionSimulator#readme"
+  "homepage": "https://github.com/adityathebe/evolutionSimulator#readme",
+  "dependencies": {
+    "@tensorflow/tfjs": "^0.14.1",
+    "@types/matter-js": "^0.10.2",
+    "matter-js": "^0.14.2"
+  }
 }

@@ -1,34 +1,52 @@
+import * as tfjs from "@tensorflow/tfjs";
+import { Rank, Tensor } from "@tensorflow/tfjs";
+import { TensorLike } from "@tensorflow/tfjs-core/dist/types";
+
+interface JSONData {
+  input_nodes: number;
+  input_weights: TensorLike;
+
+  hidden_nodes: number;
+
+  output_nodes: number;
+  output_weights: TensorLike;
+}
+
 /** Simple Neural Network library that can only create neural networks of exactly 3 layers */
 export class NeuralNetwork {
-  /**
-   * Takes in the number of input nodes, hidden node and output nodes
-   * @constructor
-   * @param {number} input_nodes
-   * @param {number} hidden_nodes
-   * @param {number} output_nodes
-   */
-  constructor(input_nodes, hidden_nodes, output_nodes) {
+  constructor(input_nodes: number, hidden_nodes: number, output_nodes: number) {
     this.input_nodes = input_nodes;
     this.hidden_nodes = hidden_nodes;
     this.output_nodes = output_nodes;
 
     // Initialize random weights
-    this.input_weights = tf.randomNormal([this.input_nodes, this.hidden_nodes]);
-    this.output_weights = tf.randomNormal([
+    this.input_weights = tfjs.randomNormal([
+      this.input_nodes,
+      this.hidden_nodes
+    ]);
+    this.output_weights = tfjs.randomNormal([
       this.hidden_nodes,
       this.output_nodes
     ]);
   }
 
+  input_nodes: number;
+  input_weights: Tensor<Rank>;
+
+  hidden_nodes: number;
+
+  output_nodes: number;
+  output_weights: Tensor<Rank>;
+
   /**
    * Takes in a 1D array and feed forwards through the network
    * @param {array} - Array of inputs
    */
-  predict(user_input) {
+  predict(user_input: number[]) {
     let output;
-    tf.tidy(() => {
+    tfjs.tidy(() => {
       /* Takes a 1D array */
-      let input_layer = tf.tensor(user_input, [1, this.input_nodes]);
+      let input_layer = tfjs.tensor(user_input, [1, this.input_nodes]);
       let hidden_layer = input_layer.matMul(this.input_weights).sigmoid();
       let output_layer = hidden_layer.matMul(this.output_weights).sigmoid();
       output = output_layer.dataSync();
@@ -47,8 +65,8 @@ export class NeuralNetwork {
       this.output_nodes
     );
     clonie.dispose();
-    clonie.input_weights = tf.clone(this.input_weights);
-    clonie.output_weights = tf.clone(this.output_weights);
+    clonie.input_weights = tfjs.clone(this.input_weights);
+    clonie.output_weights = tfjs.clone(this.output_weights);
     return clonie;
   }
 
@@ -78,17 +96,17 @@ export class NeuralNetwork {
    * Load model from JSON
    * @param {json} json_data
    */
-  loadFromJson(json_data) {
+  loadFromJson(json_data: JSONData) {
     this.input_nodes = json_data.input_nodes;
     this.hidden_nodes = json_data.hidden_nodes;
     this.output_nodes = json_data.output_nodes;
-    let input_weights = Object.values(json_data.input_weights);
-    let output_weights = Object.values(json_data.output_weights);
-    this.input_weights = tf.tensor(input_weights, [
+    let input_weights = json_data.input_weights;
+    let output_weights = json_data.output_weights;
+    this.input_weights = tfjs.tensor(input_weights, [
       json_data.input_nodes,
       json_data.hidden_nodes
     ]);
-    this.output_weights = tf.tensor(output_weights, [
+    this.output_weights = tfjs.tensor(output_weights, [
       json_data.hidden_nodes,
       json_data.output_nodes
     ]);
