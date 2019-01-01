@@ -1,7 +1,8 @@
 import { NeuralNetwork } from "../NeuroEvolution/NeuralNetwork";
 import * as MatterJS from "matter-js";
+import * as tfjs from "@tensorflow/tfjs";
 
-interface Params {
+export interface RunnerParams {
   id?: number;
   leftLegLength?: number;
   leftLegWidth?: number;
@@ -16,7 +17,7 @@ interface Params {
 }
 
 export class BipedalRunner {
-  constructor(params: Params) {
+  constructor(params: RunnerParams) {
     this.id = params.id || 0;
     this.leftLegLength = params.leftLegLength || 60;
     this.leftLegWidth = params.leftLegWidth || 10;
@@ -29,6 +30,9 @@ export class BipedalRunner {
     this.score = 0;
     this.fitness = 0;
     this.brain = new NeuralNetwork(10, 25, 2);
+
+    this.canvasWidth = params.canvasWidth || 800;
+    this.canvasHeight = params.canvasHeight || 600;
 
     ////////////////
     // Body parts //
@@ -87,7 +91,42 @@ export class BipedalRunner {
       }
     );
 
-    this.makeJoints();
+    this.leftJoint = MatterJS.Constraint.create({
+      bodyA: this.leftLeg,
+      bodyB: this.body,
+      pointA: { x: (this.leftLegLength / 2) * 0.8, y: 0 },
+      pointB: { x: (-this.bodyLength / 2) * 0.8, y: 0 },
+      length: 0,
+      stiffness: 1
+    });
+
+    this.rightJoint = MatterJS.Constraint.create({
+      bodyA: this.rightLeg,
+      bodyB: this.body,
+      pointA: { x: (-this.rightLegLength / 2) * 0.8, y: 0 },
+      pointB: { x: (this.bodyLength / 2) * 0.8, y: 0 },
+      length: 0,
+      stiffness: 1
+    });
+
+    ///////////////////
+    // Muscle Joints //
+    ///////////////////
+    this.leftMuscle = MatterJS.Constraint.create({
+      bodyA: this.leftLeg,
+      bodyB: this.body,
+      length: 0.8 * (this.rightLegLength / 2 + this.bodyLength / 2),
+      pointA: { x: (-this.rightLegLength / 2) * 0.8, y: 0 },
+      stiffness: 1
+    });
+
+    this.rightMuscle = MatterJS.Constraint.create({
+      bodyA: this.rightLeg,
+      bodyB: this.body,
+      length: 0.8 * (this.rightLegLength / 2 + this.bodyLength / 2),
+      pointA: { x: (this.rightLegLength / 2) * 0.8, y: 0 },
+      stiffness: 1
+    });
   }
 
   id: number;
@@ -103,15 +142,18 @@ export class BipedalRunner {
   fitness: number;
   brain: any;
 
-  leftLeg: any;
-  leftJoint: any;
-  leftMuscle: any;
+  leftLeg: MatterJS.Body;
+  leftJoint: MatterJS.Constraint;
+  leftMuscle: MatterJS.Constraint;
 
-  rightLeg: any;
-  rightJoint: any;
-  rightMuscle: any;
+  rightLeg: MatterJS.Body;
+  rightJoint: MatterJS.Constraint;
+  rightMuscle: MatterJS.Constraint;
 
-  body: any;
+  body: MatterJS.Body;
+
+  canvasWidth: number;
+  canvasHeight: number;
 
   makeJoints() {
     ////////////
@@ -159,24 +201,26 @@ export class BipedalRunner {
    * Adds all parts of the person in MatterJS world
    * @param {Matter.World} world
    */
-  addToWorld(world) {
-    Matter.World.add(world, [this.leftLeg, this.rightLeg, this.body]);
-    Matter.World.add(world, [this.leftJoint]);
-    Matter.World.add(world, [this.leftMuscle]);
-    Matter.World.add(world, [this.rightJoint]);
-    Matter.World.add(world, [this.rightMuscle]);
+  addToWorld(world: MatterJS.World) {
+    MatterJS.World.add(world, [this.leftLeg, this.rightLeg, this.body]);
+    MatterJS.World.add(world, [this.leftJoint]);
+    MatterJS.World.add(world, [this.leftMuscle]);
+    MatterJS.World.add(world, [this.rightJoint]);
+    MatterJS.World.add(world, [this.rightMuscle]);
   }
 
   /**
    * Removes all parts of the person from MatterJS world
    * @param {Matter.World} world
    */
-  removeFromWorld(world) {
-    Matter.World.remove(world, [this.leftLeg, this.rightLeg, this.body]);
-    Matter.World.remove(world, [this.leftJoint]);
-    Matter.World.remove(world, [this.leftMuscle]);
-    Matter.World.remove(world, [this.rightJoint]);
-    Matter.World.remove(world, [this.rightMuscle]);
+  removeFromWorld(world: MatterJS.World) {
+    MatterJS.World.remove(world, this.leftLeg);
+    MatterJS.World.remove(world, this.rightLeg);
+    MatterJS.World.remove(world, this.body);
+    MatterJS.World.remove(world, this.leftJoint);
+    MatterJS.World.remove(world, this.leftMuscle);
+    MatterJS.World.remove(world, this.rightJoint);
+    MatterJS.World.remove(world, this.rightMuscle);
 
     // Dispose its brain
     this.brain.dispose();
@@ -187,24 +231,25 @@ export class BipedalRunner {
    * @returns {Object}
    */
   getParams() {
-    return Object.assign(
-      {},
-      {
-        id: this.id,
-        leftLegLength: this.leftLegLength,
-        leftLegWidthleftLegLength: this.leftLegWidthleftLegLength,
-        rightLegLengthleftLegLength: this.rightLegLengthleftLegLength,
-        rightLegWidthleftLegLength: this.rightLegWidthleftLegLength,
-        bodyLengthleftLegLength: this.bodyLengthleftLegLength,
-        bodyWidthleftLegLength: this.bodyWidthleftLegLength,
-        posXleftLegLength: this.posXleftLegLength,
-        posYleftLegLength: this.posYleftLegLength
-      }
-    );
+    return {
+      id: this.id,
+      leftLegLength: this.leftLegLength,
+      leftLegWidth: this.leftLegWidth,
+      rightLegLength: this.rightLegLength,
+      rightLegWidth: this.rightLegWidth,
+      bodyLength: this.bodyLength,
+      bodyWidth: this.bodyWidth,
+      posX: this.posX,
+      posY: this.posY,
+      canvasWidth: this.canvasWidth,
+      canvasHeight: this.canvasHeight
+    };
   }
 
   clone() {
-    let bipedal = new BipedalRunner(this.getParams());
+    const params = this.getParams();
+
+    let bipedal = new BipedalRunner(params);
     bipedal.brain.dispose();
     bipedal.brain = this.brain.clone();
     return bipedal;
@@ -218,15 +263,15 @@ export class BipedalRunner {
     this.score += walkingScore * (isHeadBalanced ? 2 : 0.5) * velocity;
   }
 
-  think(boundary) {
+  think(boundary: any) {
     // Prepare inputs
     const ground = boundary.ground;
     const bodyHeightAboveGround =
-      (ground.position.y - this.body.position.y) / width;
+      (ground.position.y - this.body.position.y) / this.canvasWidth;
     const leftLegHeightAboveGround =
-      (ground.position.y - this.leftLeg.position.y) / width;
+      (ground.position.y - this.leftLeg.position.y) / this.canvasWidth;
     const rightLegHeightAboveGround =
-      (ground.position.y - this.rightLeg.position.y) / width;
+      (ground.position.y - this.rightLeg.position.y) / this.canvasWidth;
     const vx = this.body.velocity.x;
     const vy = this.body.velocity.y;
     const leftMuscleLength = this.leftMuscle.length / 70;
@@ -269,7 +314,7 @@ export class BipedalRunner {
     this.adjustScore();
   }
 
-  crossover(partner) {
+  crossover(partner: BipedalRunner) {
     let parentA_in_dna = this.brain.input_weights.dataSync();
     let parentA_out_dna = this.brain.output_weights.dataSync();
     let parentB_in_dna = partner.brain.input_weights.dataSync();
@@ -291,16 +336,18 @@ export class BipedalRunner {
 
     child.brain.dispose();
 
-    child.brain.input_weights = tf.tensor(child_in_dna, input_shape);
-    child.brain.output_weights = tf.tensor(child_out_dna, output_shape);
+    child.brain.input_weights = tfjs.tensor(child_in_dna, input_shape);
+    child.brain.output_weights = tfjs.tensor(child_out_dna, output_shape);
 
     return child;
   }
 
   mutate() {
-    function fn(x) {
-      if (random(1) < 0.1) {
-        let offset = randomGaussian() * 0.5;
+    function fn(x: number) {
+      // if (random(1) < 0.1) {
+      if (Math.random() < 0.1) {
+        // let offset = randomGaussian() * 0.5;
+        let offset = Math.random() * 0.5;
         let newx = x + offset;
         return newx;
       }
@@ -310,11 +357,11 @@ export class BipedalRunner {
     let ih = this.brain.input_weights.dataSync().map(fn);
     let ih_shape = this.brain.input_weights.shape;
     this.brain.input_weights.dispose();
-    this.brain.input_weights = tf.tensor(ih, ih_shape);
+    this.brain.input_weights = tfjs.tensor(ih, ih_shape);
 
     let ho = this.brain.output_weights.dataSync().map(fn);
     let ho_shape = this.brain.output_weights.shape;
     this.brain.output_weights.dispose();
-    this.brain.output_weights = tf.tensor(ho, ho_shape);
+    this.brain.output_weights = tfjs.tensor(ho, ho_shape);
   }
 }

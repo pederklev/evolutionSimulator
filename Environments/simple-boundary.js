@@ -1,5 +1,4 @@
-class SimpleBoundary {
-
+export class SimpleBoundary {
   /**
    * @constructor
    */
@@ -13,7 +12,7 @@ class SimpleBoundary {
         category: 0x0001
       }
     });
-    
+
     this.roof = Matter.Bodies.rectangle(width / 2, 10, width, 40, {
       isStatic: true,
       density: 50,
@@ -32,20 +31,31 @@ class SimpleBoundary {
       }
     });
 
-    this.right_wall = Matter.Bodies.rectangle(width - 10, height / 2, 20, height, {
-      isStatic: true,
-      friction: 1,
-      density: 50,
-      collisionFilter: {
-        category: 0x0001
+    this.right_wall = Matter.Bodies.rectangle(
+      width - 10,
+      height / 2,
+      20,
+      height,
+      {
+        isStatic: true,
+        friction: 1,
+        density: 50,
+        collisionFilter: {
+          category: 0x0001
+        }
       }
-    });
+    );
   }
 
   /**
    * Adds the current boundary to MatterJS World
    */
   addToWorld(world) {
-    Matter.World.add(world, [this.ground, this.roof, this.left_wall, this.right_wall]);
+    Matter.World.add(world, [
+      this.ground,
+      this.roof,
+      this.left_wall,
+      this.right_wall
+    ]);
   }
 }
